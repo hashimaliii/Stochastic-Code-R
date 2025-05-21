@@ -1,0 +1,374 @@
+Steady Stae
+
+transition_matrix <- matrix(c(0.6, 0.4, 0.3, 0.7), byrow=TRUE, nrow=2)
+eigen_result <- eigen(t(transition_matrix))
+steady_state <- eigen_result$vectors[,1] / sum(eigen_result$vectors[,1])
+print(steady_state)
+
+Poisson Distribution
+
+lambda <- 4 # Average rate (events per unit time)
+time_intervals <- 10
+events <- rpois(time_intervals, lambda)
+print(events)
+
+weather_states <- c("Sunny", "Cloudy", "Rainy")
+
+# Transition probability matrix P
+# P[i,j] = Probability of moving from state i to state j
+P_weather <- matrix(c(
+  0.7, 0.2, 0.1,  # From Sunny: P(S->S)=0.7, P(S->C)=0.2, P(S->R)=0.1
+  0.3, 0.4, 0.3,  # From Cloudy: P(C->S)=0.3, P(C->C)=0.4, P(C->R)=0.3
+  0.2, 0.4, 0.4   # From Rainy: P(R->S)=0.2, P(R->C)=0.4, P(R->R)=0.4
+), nrow = 3, byrow = TRUE)
+
+# Verify that each row sums to 1 (stochastic matrix property)
+cat("\nVerify rows sum to 1:\n")
+print(rowSums(P_weather))
+
+weather_states <- c("Sunny", "Cloudy", "Rainy")
+
+# Transition probability matrix P
+# P[i,j] = Probability of moving from state i to state j
+P_weather <- matrix(c(
+  0.7, 0.2, 0.1,  # From Sunny: P(S->S)=0.7, P(S->C)=0.2, P(S->R)=0.1
+  0.3, 0.4, 0.3,  # From Cloudy: P(C->S)=0.3, P(C->C)=0.4, P(C->R)=0.3
+  0.2, 0.4, 0.4   # From Rainy: P(R->S)=0.2, P(R->C)=0.4, P(R->R)=0.4
+), nrow = 3, byrow = TRUE)
+
+# Verify that each row sums to 1 (stochastic matrix property)
+cat("\nVerify rows sum to 1:\n")
+print(rowSums(P_weather))
+
+NStep Transition
+
+P_four_state <- matrix(c(
+  0.5, 0.3, 0.2, 0.0,
+  0.0, 0.6, 0.3, 0.1,
+  0.2, 0.0, 0.5, 0.3,
+  0.1, 0.1, 0.0, 0.8
+), nrow = 4, byrow = TRUE)
+
+n_step_transition <- function(P, n) {
+  result <- P
+  for (i in 2:n) {
+    result <- result %*% P
+  }
+  return(result)
+}
+
+P_10step <- n_step_transition(P_four_state, 10)
+print(round(P_10step, 4))  # Round to 4 decimal places for readability
+
+Steady state (another tareqa)
+
+P_simple <- matrix(c(
+  0.3, 0.6, 0.1,
+  0.4, 0.2, 0.4,
+  0.1, 0.5, 0.4
+), nrow = 3, byrow = TRUE)
+
+A <- t(diag(3) - P_simple)
+A[3,] <- rep(1, 3)
+b <- c(0, 0, 1)
+pi_simple <- solve(A, b)
+print(round(pi_simple, 4))
+
+mean recurrence time
+
+recurrence_times <- 1 / pi_simple
+print(round(recurrence_times, 2))
+
+Absorbing States
+
+states <- c("$0", "$1", "$2", "$3")
+is_absorbing <- diag(P_simple) == 1
+absorbing_states <- states[is_absorbing]
+cat("Absorbing states:", absorbing_states, "\n")
+
+# transient_indices = !absorbing states
+Transition from one state to other
+
+#state 2 and 3 transition to state 2 and 3
+Q = P_simple[c(2,3), c(2,3), drop=FALSE]
+
+Absorption Probabilities
+
+N <- solve(diag(nrow(Q)) - Q)
+rowSums(N) # Absorbing Steps
+B <- N %*% R # Absorbing Prob
+
+# A Transiiton Matrix (Hidden - Hidden)
+# B Emission Matrix (Hidden - Observable)
+# Obervation Sequence comes from Emission Matrix (Observable States (Column) B)
+forward_algorithm <- function(A, B, pi, observations) {
+  n_states <- nrow(A)
+  n_steps <- length(observations)
+  
+  # Initialize alpha matrix (forward probabilities)
+  alpha <- matrix(0, nrow = n_states, ncol = n_steps)
+  
+  # Compute alpha for t=1 (initialization)
+  for (i in 1:n_states) {
+    alpha[i, 1] <- pi[i] * B[i, observations[1]]
+  }
+    # Compute alpha for t=2,...,T (induction)
+  for (t in 2:n_steps) {
+    for (j in 1:n_states) {
+      # Sum over all possible previous states
+      sum_val <- 0
+      for (i in 1:n_states) {
+        sum_val <- sum_val + alpha[i, t-1] * A[i, j]
+      }
+      alpha[j, t] <- sum_val * B[j, observations[t]]
+    }
+  }
+  
+  # Total probability of the observation sequence
+  prob_observations <- sum(alpha[, n_steps])
+  
+  return(list(
+    alpha = alpha,
+    prob_observations = prob_observations
+  ))
+}
+
+# Run forward algorithm
+forward_results <- forward_algorithm(A, B, pi, observation_sequence)
+
+# Calculate state probabilities at each time step
+state_probs <- t(apply(forward_results$alpha, 2, function(x) x / sum(x)))
+
+Queueing Theory
+
+arrival_rate <- 2    # Customers arrive at rate of 2 per hour
+service_rate <- 3    # Server can handle 3 customers per hour
+time_horizon <- 8    # Simulate for 8 hours
+
+cat("Arrival rate (λ):", arrival_rate, "customers per hour\n")
+cat("Service rate (μ):", service_rate, "customers per hour\n")
+
+# Theoretical results from queueing theory
+rho <- arrival_rate / service_rate  # Traffic intensity
+L <- rho / (1 - rho)                # Expected number of customers in system
+W <- 1 / (service_rate - arrival_rate) # Expected time in system
+Lq <- L - rho                       # Expected queue length
+Wq <- W - 1/service_rate            # Expected waiting time
+Ls <- L - Lq                        # Expected number of customers in service
+Ws <- W - Wq                        # Expected time in service
+
+Poisson
+
+# Function to calculate probability of exactly n events in time period t with rate lambda
+poisson_probability <- function(n, lambda, t) {
+  # n: number of events
+  # lambda: rate parameter (events per unit time)
+  # t: time period
+  
+  # Expected number of events in time period t
+  expected_events <- lambda * t
+  
+  # Probability of exactly n events
+  prob <- dpois(n, lambda = expected_events)
+  
+  return(prob)
+}
+
+# Function to calculate probability of at most n events in time period t
+poisson_probability_at_most <- function(n, lambda, t) {
+  expected_events <- lambda * t
+  prob <- ppois(n, lambda = expected_events)
+  return(prob)
+}
+
+# Function to calculate probability of at least n events in time period t
+poisson_probability_at_least <- function(n, lambda, t) {
+  expected_events <- lambda * t
+  # P(X ≥ n) = 1 - P(X < n) = 1 - P(X ≤ n-1)
+  prob <- 1 - ppois(n - 1, lambda = expected_events)
+  return(prob)
+}
+
+# Function to calculate probability of between n1 and n2 events (inclusive)
+poisson_probability_between <- function(n1, n2, lambda, t) {
+  expected_events <- lambda * t
+  # P(n1 ≤ X ≤ n2) = P(X ≤ n2) - P(X ≤ n1-1)
+  prob <- ppois(n2, lambda = expected_events) - ppois(n1 - 1, lambda = expected_events)
+  return(prob)
+}
+
+# ============================================================================
+# 3. WAITING TIME PREDICTIONS
+# ============================================================================
+
+# Function to predict next arrival time given the last arrival time
+predict_next_arrival <- function(last_arrival, lambda) {
+  # last_arrival: time of the last arrival
+  # lambda: rate parameter (events per unit time)
+  
+  # In a Poisson process, inter-arrival times follow an exponential distribution
+  # with rate parameter lambda
+  inter_arrival_time <- rexp(1, rate = lambda)
+  
+  next_arrival <- last_arrival + inter_arrival_time
+  return(next_arrival)
+}
+
+# Function to predict the distribution of waiting time until the next n events
+predict_waiting_time <- function(n, lambda) {
+  # n: number of events to wait for
+  # lambda: rate parameter (events per unit time)
+  
+  # In a Poisson process, the waiting time until the nth event follows
+  # a Gamma distribution with shape=n and rate=lambda
+  mean_waiting_time <- n / lambda
+  variance <- n / (lambda^2)
+  std_dev <- sqrt(variance)
+  
+  # Return the parameters of the waiting time distribution
+  return(list(
+    distribution = "Gamma",
+    shape = n,
+    rate = lambda,
+    mean = mean_waiting_time,
+    standard_deviation = std_dev
+  ))
+}
+
+# Function to calculate probability of waiting less than t time units for the next event
+prob_waiting_less_than <- function(t, lambda) {
+  # P(T < t) = 1 - e^(-lambda*t)
+  prob <- 1 - exp(-lambda * t)
+  return(prob)
+}
+
+# Function to calculate probability of waiting more than t time units for the next event
+prob_waiting_more_than <- function(t, lambda) {
+  # P(T > t) = e^(-lambda*t)
+  prob <- exp(-lambda * t)
+  return(prob)
+}
+
+# Sample arrival times (observed customer arrivals per unit time)
+arrival_times <- c(2, 3, 4, 5, 6, 3, 4, 2, 5, 6)
+lambda <- mean(arrival_times) # Estimated arrival rate
+print(lambda)
+
+# Sample service times (observed service completion times per unit)
+service_times <- c(2.5, 3.0, 2.8, 2.2, 2.9, 3.1, 3.0)
+mu <- 1 / mean(service_times) # Estimated service rate
+print(mu)
+
+# If you have arrival times (in case of exact time)
+arrival_times <- c(0.5, 1.2, 3.7, 4.2, 6.8)  # Example arrival times
+observation_period <- max(arrival_times)     # Total observation time
+arrival_rate <- (length(arrival_times) - 1) / observation_period
+
+# If you have arrival times (in case of time period gap)
+arrival_times <- c(0.5, 1.2, 3.7, 4.2, 6.8)  # Example arrival times
+observation_period <- sum(arrival_times)     # Total observation time
+arrival_rate <- (length(arrival_times) - 1) / observation_period
+
+# Function to calculate probability of X between n1 and n2 (exclusive)
+poisson_probability_between_exclusive <- function(n1, n2, lambda, t) {
+  expected_events <- lambda * t
+  # P(n1 < X < n2) = P(X ≤ n2 - 1) - P(X ≤ n1)
+  prob <- ppois(n2 - 1, lambda = expected_events) - ppois(n1, lambda = expected_events)
+  return(prob)
+}
+
+# Poission Process
+dpois(n, lambda = lambda * t) # calculate probability of exactly n events
+ppois(n, lambda = lambda * t) #  calculate probability of 0 - n (inclusive) events in time period t
+1 - ppois(n - 1, lambda = lambda * t) #  calculate probability of n - Infinity (inclusive) events in time period t
+ppois(n2, lambda = lambda * t) - ppois(n1 - 1, lambda = lambda * t) # calculate probability of between n1 and n2 events (inclusive)
+inter_arrival_time <- rexp(1, rate = lambda)
+mean_waiting_time <- n / lambda
+variance <- n / (lambda^2)
+std_dev <- sqrt(variance)
+1 - exp(-lambda * t) # calculate probability of waiting less than t time units for the next event
+exp(-lambda * t) # calculate probability of waiting more than t time units for the next event
+
+# ----------------------------
+# Gaussian Process Regression in R (Built-in Only)
+# ----------------------------
+
+# 1. Define the RBF kernel function (with length scale and variance as hyperparameters)
+rbf_kernel <- function(x1, x2, l = 1, sigma_f = 1) {
+  outer(x1, x2, function(a, b) sigma_f^2 * exp(- (a - b)^2 / (2 * l^2)))
+}
+
+# 2. Simulate training data
+set.seed(42)
+x_train <- seq(-3, 3, length.out = 10)
+y_train <- sin(x_train) + rnorm(length(x_train), sd = 0.1)
+
+# 3. Define test points
+x_test <- seq(-3, 3, length.out = 100)
+
+# 4. Manually set hyperparameters (Hyperparameter Estimation concept)
+l <- 1          # length scale
+sigma_f <- 1    # signal variance
+sigma_n <- 0.1  # noise standard deviation
+
+# 5. Compute kernel matrices
+K <- rbf_kernel(x_train, x_train, l, sigma_f)
+K_s <- rbf_kernel(x_train, x_test, l, sigma_f)
+K_ss <- rbf_kernel(x_test, x_test, l, sigma_f)
+
+# 6. Add noise to the diagonal of the training kernel matrix
+K_noise <- K + sigma_n^2 * diag(length(x_train))
+
+# 7. Compute the posterior mean and covariance (Posterior of GP)
+K_inv <- solve(K_noise)
+mu_s <- t(K_s) %% K_inv %% y_train  # Posterior mean
+cov_s <- K_ss - t(K_s) %% K_inv %% K_s  # Posterior covariance
+
+# 8. Extract standard deviation from diagonal of covariance for confidence interval
+std_dev <- sqrt(diag(cov_s))
+lower_bound <- mu_s - 1.96 * std_dev
+upper_bound <- mu_s + 1.96 * std_dev
+
+# 9. Plot GP prediction with uncertainty bounds
+plot(x_train, y_train, col = "red", pch = 16, ylim = c(-2, 2),
+     main = "Gaussian Process Regression (Built-in R Only)", xlab = "x", ylab = "f(x)")
+lines(x_test, mu_s, col = "blue", lwd = 2)
+lines(x_test, lower_bound, col = "blue", lty = 2)
+lines(x_test, upper_bound, col = "blue", lty = 2)
+legend("topright", legend = c("Training Data", "Posterior Mean", "95% CI"),
+       col = c("red", "blue", "blue"), pch = c(16, NA, NA), lty = c(NA, 1, 2))
+
+# ----------------------------
+# End of Full GP Code (No external libraries used)
+# ----------------------------
+
+
+calculate_mfpt_fundamental <- function(P) {
+  n <- nrow(P)
+  
+  # Calculate steady state distribution
+  A <- t(diag(n) - P)
+  A[n, ] <- rep(1, n)
+  b <- c(rep(0, n-1), 1)
+  pi <- solve(A, b)
+  
+  # Create matrix W with rows equal to π
+  W <- matrix(pi, nrow = n, ncol = n, byrow = TRUE)
+  
+  # Calculate fundamental matrix Z = (I - P + W)^(-1)
+  Z <- solve(diag(n) - P + W)
+  
+  # Calculate mean first passage times
+  M <- matrix(0, nrow = n, ncol = n)
+  for (i in 1:n) {
+    for (j in 1:n) {
+      if (i != j) {
+        M[i, j] <- (Z[j, j] - Z[i, j]) / pi[j]
+      } else {
+        M[i, i] <- 1 / pi[i]
+      }
+    }
+  }
+  
+  return(list(M = M, pi = pi, Z = Z))
+}
